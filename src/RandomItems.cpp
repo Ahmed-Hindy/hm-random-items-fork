@@ -1,3 +1,6 @@
+// RandomItems.cpp
+// Plugin for Hitman Random Items mod. Spawns or adds random items at intervals.
+
 #include "RandomItems.h"
 
 #include <Logging.h>
@@ -14,6 +17,10 @@
 
 #include <Glacier/ZGameStats.h>
 
+/**
+ * Called when the game engine has finished initializing.
+ * Registers the frame update delegate for continuous updates.
+ */
 void RandomItems::OnEngineInitialized() {
     Logger::Info("RandomItems has been initialized!");
 
@@ -21,18 +28,27 @@ void RandomItems::OnEngineInitialized() {
     Globals::GameLoopManager->RegisterFrameUpdate(s_Delegate, 1, EUpdateMode::eUpdatePlayMode);
 }
 
+/**
+ * Destructor. Unregisters the frame update delegate to clean up resources.
+ */
 RandomItems::~RandomItems() {
     const ZMemberDelegate<RandomItems, void(const SGameUpdateEvent&)> s_Delegate(this, &RandomItems::OnFrameUpdate);
     Globals::GameLoopManager->UnregisterFrameUpdate(s_Delegate, 1, EUpdateMode::eUpdatePlayMode);
 }
 
+/**
+ * Draws the toggle button in the main mod menu.
+ */
 void RandomItems::OnDrawMenu() {
     if (ImGui::Button(ICON_MD_LOCAL_FIRE_DEPARTMENT " Random Items")) {
         m_ShowMessage = !m_ShowMessage;
     }
-    
 }
 
+/**
+ * Renders the mod UI, including controls for start/stop, delay, spawn mode, and filters.
+ * @param p_HasFocus Whether the UI window currently has input focus.
+ */
 void RandomItems::OnDrawUI(bool p_HasFocus) {
     if (m_ShowMessage && p_HasFocus) {
         if (ImGui::Begin(ICON_MD_LOCAL_FIRE_DEPARTMENT " Random Items", &m_ShowMessage)) {
@@ -71,6 +87,10 @@ void RandomItems::OnDrawUI(bool p_HasFocus) {
     }
 }
 
+/**
+ * Called every frame when the game is updating. Accumulates time and spawns items at intervals.
+ * @param p_UpdateEvent Contains timing information for this frame.
+ */
 void RandomItems::OnFrameUpdate(const SGameUpdateEvent& p_UpdateEvent) {
     if (!m_Running) return;
 
@@ -82,6 +102,12 @@ void RandomItems::OnFrameUpdate(const SGameUpdateEvent& p_UpdateEvent) {
     }
 }
 
+/**
+ * Retrieves the repository pair (title and ID) at the given index in the map.
+ * @param s_Index Zero-based index into the repository properties map.
+ * @return Pair of item title string and repository ID.
+ * @throws std::out_of_range if index is invalid.
+ */
 std::pair<const std::string, ZRepositoryID> RandomItems::GetRepositoryPropFromIndex(int s_Index) {
     int s_CurrentIndex = 0;
     for (auto it = m_RepositoryProps.begin(); it != m_RepositoryProps.end(); ++it) {
@@ -94,15 +120,21 @@ std::pair<const std::string, ZRepositoryID> RandomItems::GetRepositoryPropFromIn
     throw std::out_of_range("repo index out of bounds.");
 }
 
+/**
+ * Loads and filters the repository of available items from the game resource.
+ * Populates m_RepositoryProps based on category and title inclusion settings.
+ */
 void RandomItems::LoadRepositoryProps()
 {
     Logger::Info("Loading repository (your game will freeze shortly)");
 
     std::string s_IncludedCategories[] = {
-        "assaultrifle", "sniperrifle", "melee", "explosives", "tool", "pistol", "shotgun", "suitcase", "smg", "distraction", "poison", "container",
-        "INVALID_CATEGORY_ICON" // <- debatable, makes it more random but also kind of wonky
+        "explosives", "tool", "poison",
+        // "assaultrifle", "sniperrifle", "melee", "explosives", "tool", "pistol", "shotgun", "suitcase", "smg", "distraction", "poison", "container",
+        // "INVALID_CATEGORY_ICON" // <- debatable, makes it more random but also kind of wonky
     };
 
+    // Acquire resource if not loaded
     if (m_RepositoryResource.m_nResourceIndex == -1)
     {
         const auto s_ID = ResId<"[assembly:/repository/pro.repo].pc_repo">;
@@ -110,6 +142,7 @@ void RandomItems::LoadRepositoryProps()
         Globals::ResourceManager->GetResourcePtr(m_RepositoryResource, s_ID, 0);
     }
 
+    // Validate and iterate entries
     if (m_RepositoryResource.GetResourceInfo().status == RESOURCE_STATUS_VALID)
     {
         const auto s_RepositoryData = static_cast<THashMap<ZRepositoryID, ZDynamicObject, TDefaultHashMapPolicy<ZRepositoryID>>*>(m_RepositoryResource.GetResourceData());
@@ -173,6 +206,12 @@ void RandomItems::LoadRepositoryProps()
     }
 }
 
+/**
+ * Converts a dynamic object value to its string representation.
+ * Supports ZString, bool, and float64 types; others return the type name.
+ * @param p_DynamicObject The dynamic object to convert.
+ * @return Value as a UTF-8 encoded std::string.
+ */
 std::string RandomItems::ConvertDynamicObjectValueTString(const ZDynamicObject& p_DynamicObject)
 {
     std::string s_Result;
@@ -208,6 +247,9 @@ std::string RandomItems::ConvertDynamicObjectValueTString(const ZDynamicObject& 
     return s_Result;
 }
 
+/**
+ * Chooses a random item from the repository pool and either spawns it in the world or adds it to inventory.
+ */
 void RandomItems::GiveRandomItem()
 {
     if (m_RepositoryProps.size() == 0)
@@ -215,7 +257,7 @@ void RandomItems::GiveRandomItem()
         Logger::Info("loading repository props (your game might freeze shortly)");
         LoadRepositoryProps();
     }
-    
+
     std::srand(static_cast<unsigned int>(std::time(nullptr)));
 
     size_t s_RandomIndex = std::rand() % m_RepositoryProps.size();
@@ -289,4 +331,5 @@ void RandomItems::GiveRandomItem()
     }
 }
 
+// Macro to register plugin with the Hitman mod framework
 DECLARE_ZHM_PLUGIN(RandomItems);
