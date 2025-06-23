@@ -9,6 +9,7 @@
 class RandomItems : public IPluginInterface {
 public:
     void OnEngineInitialized() override;
+    RandomItems();
     ~RandomItems() override;
     void OnDrawMenu() override;
     void OnDrawUI(bool p_HasFocus) override;
@@ -30,6 +31,18 @@ private:
     float m_HitmanItemPosition[3] = { 0, 1, 0 };
     TResourcePtr<ZTemplateEntityFactory> m_RepositoryResource;
     std::multimap<std::string, ZRepositoryID> m_RepositoryProps;
+
+private:
+    // Full list of categories the user can toggle
+    const std::vector<std::string> m_AllCategories {
+        "assaultrifle", "sniperrifle", "melee",       "explosives",
+        "tool",         "pistol",      "shotgun",     "suitcase",
+        "smg",          "distraction", "poison",      "container"
+    };
+
+    // Parallel flags: true = category is enabled
+    // Initialized to all-true via the ctor (see below)
+    std::vector<bool> m_CategoryEnabled;
 };
 
 DEFINE_ZHM_PLUGIN(RandomItems)

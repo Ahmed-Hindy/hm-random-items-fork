@@ -17,6 +17,14 @@
 
 #include <Glacier/ZGameStats.h>
 
+
+
+RandomItems::RandomItems()
+  : m_CategoryEnabled(m_AllCategories.size(), true)
+{
+
+}
+
 /**
  * Called when the game engine has finished initializing.
  * Registers the frame update delegate for continuous updates.
@@ -75,6 +83,22 @@ void RandomItems::OnDrawUI(bool p_HasFocus) {
                 }
             }*/
             ImGui::SeparatorText("Experimental");
+            // ────────────── Category Filter Menu ──────────────
+            if (ImGui::CollapsingHeader("Category Filters")) {
+                ImGui::TextWrapped("Toggle which categories to include when rebuilding pool:");
+                for (size_t i = 0; i < m_AllCategories.size(); ++i) {
+                    // pull out a real bool from the vector<bool> proxy
+                    bool enabled = m_CategoryEnabled[i];
+
+                    // render the checkbox; ImGui will modify 'enabled' if clicked
+                    if (ImGui::Checkbox(m_AllCategories[i].c_str(), &enabled)) {
+                        // write it back into your vector<bool>
+                        m_CategoryEnabled[i] = enabled;
+                    }
+                }
+            }
+
+
             ImGui::Checkbox("Include items without title", &m_IncludeItemsWithoutTitle);
             if (ImGui::IsItemHovered()) {
                 ImGui::SetTooltip("This will include more items, increasing the time to build the item pool and including some buggy items that can't actually spawn.");
@@ -128,83 +152,98 @@ void RandomItems::LoadRepositoryProps()
 {
     Logger::Info("Loading repository (your game will freeze shortly)");
 
-    std::string s_IncludedCategories[] = {
-        "explosives", "tool", "poison",
-        // "assaultrifle", "sniperrifle", "melee", "explosives", "tool", "pistol", "shotgun", "suitcase", "smg", "distraction", "poison", "container",
-        // "INVALID_CATEGORY_ICON" // <- debatable, makes it more random but also kind of wonky
-    };
+    // 1) Clear out any old entries
+    m_RepositoryProps.clear();
 
-    // Acquire resource if not loaded
+    // 2) Build a list of only the categories the user has checked
+    std::vector<std::string> s_IncludedCategories;
+    for (size_t i = 0; i < m_AllCategories.size(); ++i) {
+        if (m_CategoryEnabled[i]) {
+            s_IncludedCategories.push_back(m_AllCategories[i]);
+        }
+    }
+
+    // 3) Ensure the repository resource is loaded
     if (m_RepositoryResource.m_nResourceIndex == -1)
     {
         const auto s_ID = ResId<"[assembly:/repository/pro.repo].pc_repo">;
-
         Globals::ResourceManager->GetResourcePtr(m_RepositoryResource, s_ID, 0);
     }
 
-    // Validate and iterate entries
+    // 4) Only proceed if we have valid data
     if (m_RepositoryResource.GetResourceInfo().status == RESOURCE_STATUS_VALID)
     {
-        const auto s_RepositoryData = static_cast<THashMap<ZRepositoryID, ZDynamicObject, TDefaultHashMapPolicy<ZRepositoryID>>*>(m_RepositoryResource.GetResourceData());
+        // Raw map: ZRepositoryID → ZDynamicObject
+        auto* s_RepositoryData = static_cast<
+            THashMap<ZRepositoryID, ZDynamicObject, TDefaultHashMapPolicy<ZRepositoryID>>*
+        >(m_RepositoryResource.GetResourceData());
 
+        // 5) Iterate every entry in the repo
         for (auto it = s_RepositoryData->begin(); it != s_RepositoryData->end(); ++it)
         {
             const ZDynamicObject* s_DynamicObject = &it->second;
-            const TArray<SDynamicObjectKeyValuePair>* s_Entries = s_DynamicObject->As<TArray<SDynamicObjectKeyValuePair>>();
+            const auto* s_Entries = s_DynamicObject->As<TArray<SDynamicObjectKeyValuePair>>();
 
             std::string s_Id;
-
-            bool s_HasTitle = false;
-            bool s_Included = true;
+            bool        s_HasTitle = false;
+            bool        s_Included = true;
             std::string s_TitleToAdd;
             ZRepositoryID s_RepoIdToAdd("");
 
-            for (size_t i = 0; i < s_Entries->size(); ++i)
+            // 6) Pull out each field we care about
+            for (const auto& kv : *s_Entries)
             {
-                std::string s_Key = s_Entries->operator[](i).sKey.c_str();
+                std::string s_Key = kv.sKey.c_str();
 
                 if (s_Key == "ID_")
                 {
-                    s_Id = ConvertDynamicObjectValueTString(s_Entries->at(i).value);
+                    s_Id = ConvertDynamicObjectValueTString(kv.value);
                 }
-
-                if (s_Key == "Title")
+                else if (s_Key == "Title")
                 {
-                    s_HasTitle = true;
-                    std::string s_Title = ConvertDynamicObjectValueTString(s_Entries->at(i).value);
-
-                    s_TitleToAdd = s_Title;
+                    s_HasTitle    = true;
+                    std::string t = ConvertDynamicObjectValueTString(kv.value);
+                    s_TitleToAdd  = t;
                     s_RepoIdToAdd = ZRepositoryID(s_Id.c_str());
 
-                    if (s_Title.size() < 1 && !m_IncludeItemsWithoutTitle) s_Included = false;
+                    // filter out blank titles if the user disabled them
+                    if (t.empty() && !m_IncludeItemsWithoutTitle)
+                        s_Included = false;
                 }
+                else if (s_Key == "InventoryCategoryIcon")
+                {
+                    // uppercase the category
+                    std::string cat = ConvertDynamicObjectValueTString(kv.value);
+                    std::transform(cat.begin(), cat.end(), cat.begin(), ::toupper);
 
-                if (s_Key == "InventoryCategoryIcon") {
-                    std::string s_Category = ConvertDynamicObjectValueTString(s_Entries->at(i).value);
-                    bool s_CategoryMatched = false;
-
-                    std::transform(s_Category.begin(), s_Category.end(), s_Category.begin(), ::toupper);
-
-                    for (std::string s_IncludedCategory : s_IncludedCategories) {
-                        std::transform(s_IncludedCategory.begin(), s_IncludedCategory.end(), s_IncludedCategory.begin(), ::toupper);
-                        if (s_IncludedCategory == s_Category) s_CategoryMatched = true;
+                    // check it against our dynamic list
+                    bool match = false;
+                    for (auto& want : s_IncludedCategories)
+                    {
+                        std::string tmp = want;
+                        std::transform(tmp.begin(), tmp.end(), tmp.begin(), ::toupper);
+                        if (tmp == cat) { match = true; break; }
                     }
-
-                    if (!s_CategoryMatched) s_Included = false;
+                    if (!match)
+                        s_Included = false;
                 }
-
-                if (s_Key == "IsHitmanSuit") {
+                else if (s_Key == "IsHitmanSuit")
+                {
+                    // never spawn suits
                     s_Included = false;
                     break;
                 }
             }
 
-            if (s_Included && (s_HasTitle || m_IncludeItemsWithoutTitle)) {
-                m_RepositoryProps.insert(std::make_pair(s_TitleToAdd, s_RepoIdToAdd));
+            // 7) If it passed all filters, add it to the pool
+            if (s_Included && (s_HasTitle || m_IncludeItemsWithoutTitle))
+            {
+                m_RepositoryProps.insert({ s_TitleToAdd, s_RepoIdToAdd });
             }
         }
     }
 }
+
 
 /**
  * Converts a dynamic object value to its string representation.
