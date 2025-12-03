@@ -36,6 +36,11 @@ void RandomItems::OnEngineInitialized() {
     Globals::GameLoopManager->RegisterFrameUpdate(s_Delegate, 1, EUpdateMode::eUpdatePlayMode);
 }
 
+
+std::random_device rd;
+m_RandomGenerator = std::mt19937(rd());
+
+
 /**
  * Destructor. Unregisters the frame update delegate to clean up resources.
  */
@@ -132,17 +137,7 @@ void RandomItems::OnFrameUpdate(const SGameUpdateEvent& p_UpdateEvent) {
  * @return Pair of item title string and repository ID.
  * @throws std::out_of_range if index is invalid.
  */
-std::pair<const std::string, ZRepositoryID> RandomItems::GetRepositoryPropFromIndex(int s_Index) {
-    int s_CurrentIndex = 0;
-    for (auto it = m_RepositoryProps.begin(); it != m_RepositoryProps.end(); ++it) {
-        if (s_CurrentIndex == s_Index) {
-            return *it;
-        }
-        ++s_CurrentIndex;
-    }
-    Logger::Error("repo index out of bounds");
-    throw std::out_of_range("repo index out of bounds.");
-}
+
 
 /**
  * Loads and filters the repository of available items from the game resource.
@@ -185,8 +180,8 @@ void RandomItems::LoadRepositoryProps()
             const auto* s_Entries = s_DynamicObject->As<TArray<SDynamicObjectKeyValuePair>>();
 
             std::string s_Id;
-            bool        s_HasTitle = false;
-            bool        s_Included = true;
+            bool s_HasTitle = false;
+            bool s_Included = true;
             std::string s_TitleToAdd;
             ZRepositoryID s_RepoIdToAdd("");
 
@@ -233,12 +228,16 @@ void RandomItems::LoadRepositoryProps()
                     s_Included = false;
                     break;
                 }
+                else
+                {
+                    Logger::Info("Unresolved skey: {}", s_Key);
+                }
             }
 
             // 7) If it passed all filters, add it to the pool
             if (s_Included && (s_HasTitle || m_IncludeItemsWithoutTitle))
             {
-                m_RepositoryProps.insert({ s_TitleToAdd, s_RepoIdToAdd });
+                m_RepositoryProps.push_back({ s_TitleToAdd, s_RepoIdToAdd });
             }
         }
     }
@@ -263,14 +262,7 @@ std::string RandomItems::ConvertDynamicObjectValueTString(const ZDynamicObject& 
     }
     else if (strcmp(s_Type->m_pTypeName, "bool") == 0)
     {
-        if (*p_DynamicObject.As<bool>())
-        {
-            s_Result = "true";
-        }
-        else
-        {
-            s_Result = "false";
-        }
+        s_Result = *p_DynamicObject.As<bool>() ? "true" : "false";
     }
     else if (strcmp(s_Type->m_pTypeName, "float64") == 0)
     {
@@ -297,10 +289,9 @@ void RandomItems::GiveRandomItem()
         LoadRepositoryProps();
     }
 
-    std::srand(static_cast<unsigned int>(std::time(nullptr)));
 
-    size_t s_RandomIndex = std::rand() % m_RepositoryProps.size();
-    auto s_PropPair = GetRepositoryPropFromIndex(s_RandomIndex);
+    const size_t s_RandomIndex = m_Distribution(m_RandomGenerator);
+    const auto& s_PropPair = m_RepositoryProps[s_RandomIndex];
 
     auto s_LocalHitman = SDK()->GetLocalPlayer();
     if (!s_LocalHitman) {
@@ -356,7 +347,7 @@ void RandomItems::GiveRandomItem()
         s_ItemSpawner->m_rMainItemKey.m_pInterfaceRef = s_ItemRepoKey.QueryInterface<ZItemRepositoryKeyEntity>();
         s_ItemSpawner->m_rMainItemKey.m_pInterfaceRef->m_RepositoryId = s_PropPair.second;
         s_ItemSpawner->m_bUsePlacementAttach = false;
-        s_ItemSpawner->m_eDisposalTypeOverwrite = EDisposalType::DISPOSAL_HIDE;
+        s_ItemSpawner->m_eDisposalTypeOverwrite = EDisposalType::DISPOSAL_DESTROY;
         s_ItemSpawner->SetWorldMatrix(s_HitmanSpatial->GetWorldMatrix());
 
         Functions::ZItemSpawner_RequestContentLoad->Call(s_ItemSpawner);
