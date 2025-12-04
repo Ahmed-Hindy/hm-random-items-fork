@@ -11,6 +11,8 @@ on:
   push:
     branches:
       - master
+      - main
+      - 'release/*'
   release:
     types: [ created ]
   pull_request:
