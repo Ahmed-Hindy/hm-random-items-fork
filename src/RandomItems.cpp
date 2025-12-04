@@ -16,14 +16,20 @@
 #include <Glacier/ZContentKitManager.h>
 
 #include <Glacier/ZGameStats.h>
+#include <Glacier/SExternalReferences.h>
+
+#include <Hooks.h>
+
 
 
 
 RandomItems::RandomItems()
-  : m_CategoryEnabled(m_AllCategories.size(), true)
+    : m_RandomGenerator(std::mt19937{ std::random_device{}() }),
+      m_Distribution(0, 0),  // temporary; we will reset range after loading items
+      m_CategoryEnabled(m_AllCategories.size(), true)
 {
-
 }
+
 
 /**
  * Called when the game engine has finished initializing.
@@ -35,6 +41,9 @@ void RandomItems::OnEngineInitialized() {
     const ZMemberDelegate<RandomItems, void(const SGameUpdateEvent&)> s_Delegate(this, &RandomItems::OnFrameUpdate);
     Globals::GameLoopManager->RegisterFrameUpdate(s_Delegate, 1, EUpdateMode::eUpdatePlayMode);
 }
+
+
+
 
 /**
  * Destructor. Unregisters the frame update delegate to clean up resources.
@@ -132,17 +141,7 @@ void RandomItems::OnFrameUpdate(const SGameUpdateEvent& p_UpdateEvent) {
  * @return Pair of item title string and repository ID.
  * @throws std::out_of_range if index is invalid.
  */
-std::pair<const std::string, ZRepositoryID> RandomItems::GetRepositoryPropFromIndex(int s_Index) {
-    int s_CurrentIndex = 0;
-    for (auto it = m_RepositoryProps.begin(); it != m_RepositoryProps.end(); ++it) {
-        if (s_CurrentIndex == s_Index) {
-            return *it;
-        }
-        ++s_CurrentIndex;
-    }
-    Logger::Error("repo index out of bounds");
-    throw std::out_of_range("repo index out of bounds.");
-}
+
 
 /**
  * Loads and filters the repository of available items from the game resource.
@@ -164,7 +163,7 @@ void RandomItems::LoadRepositoryProps()
     }
 
     // 3) Ensure the repository resource is loaded
-    if (m_RepositoryResource.m_nResourceIndex == -1)
+    if (!m_RepositoryResource)
     {
         const auto s_ID = ResId<"[assembly:/repository/pro.repo].pc_repo">;
         Globals::ResourceManager->GetResourcePtr(m_RepositoryResource, s_ID, 0);
@@ -185,8 +184,8 @@ void RandomItems::LoadRepositoryProps()
             const auto* s_Entries = s_DynamicObject->As<TArray<SDynamicObjectKeyValuePair>>();
 
             std::string s_Id;
-            bool        s_HasTitle = false;
-            bool        s_Included = true;
+            bool s_HasTitle = false;
+            bool s_Included = true;
             std::string s_TitleToAdd;
             ZRepositoryID s_RepoIdToAdd("");
 
@@ -204,7 +203,7 @@ void RandomItems::LoadRepositoryProps()
                     s_HasTitle    = true;
                     std::string t = ConvertDynamicObjectValueTString(kv.value);
                     s_TitleToAdd  = t;
-                    s_RepoIdToAdd = ZRepositoryID(s_Id.c_str());
+                    s_RepoIdToAdd = ZRepositoryID(ZString(s_Id));
 
                     // filter out blank titles if the user disabled them
                     if (t.empty() && !m_IncludeItemsWithoutTitle)
@@ -233,14 +232,24 @@ void RandomItems::LoadRepositoryProps()
                     s_Included = false;
                     break;
                 }
+                else
+                {
+                    Logger::Info("Unresolved skey: {}", s_Key);
+                }
             }
 
             // 7) If it passed all filters, add it to the pool
             if (s_Included && (s_HasTitle || m_IncludeItemsWithoutTitle))
             {
-                m_RepositoryProps.insert({ s_TitleToAdd, s_RepoIdToAdd });
+                m_RepositoryProps.push_back({ s_TitleToAdd, s_RepoIdToAdd });
             }
         }
+    }
+
+    if (!m_RepositoryProps.empty()) {
+        m_Distribution = std::uniform_int_distribution<size_t>(
+            0, m_RepositoryProps.size() - 1
+        );
     }
 }
 
@@ -253,38 +262,17 @@ void RandomItems::LoadRepositoryProps()
  */
 std::string RandomItems::ConvertDynamicObjectValueTString(const ZDynamicObject& p_DynamicObject)
 {
-    std::string s_Result;
-    const IType* s_Type = p_DynamicObject.m_pTypeID->typeInfo();
-
-    if (strcmp(s_Type->m_pTypeName, "ZString") == 0)
-    {
-        const auto s_Value = p_DynamicObject.As<ZString>();
-        s_Result = s_Value->c_str();
-    }
-    else if (strcmp(s_Type->m_pTypeName, "bool") == 0)
-    {
-        if (*p_DynamicObject.As<bool>())
-        {
-            s_Result = "true";
-        }
-        else
-        {
-            s_Result = "false";
-        }
-    }
-    else if (strcmp(s_Type->m_pTypeName, "float64") == 0)
-    {
-        double value = *p_DynamicObject.As<double>();
-
-        s_Result = std::to_string(value).c_str();
-    }
-    else
-    {
-        s_Result = s_Type->m_pTypeName;
+    // In our usage, all keys we care about (ID_, Title, InventoryCategoryIcon)
+    // are ZString values, so we can simply treat them as such.
+    const auto valuePtr = p_DynamicObject.As<ZString>();
+    if (!valuePtr) {
+        return {};
     }
 
-    return s_Result;
+    return valuePtr->c_str();
 }
+
+
 
 /**
  * Chooses a random item from the repository pool and either spawns it in the world or adds it to inventory.
@@ -296,11 +284,14 @@ void RandomItems::GiveRandomItem()
         Logger::Info("loading repository props (your game might freeze shortly)");
         LoadRepositoryProps();
     }
+    if (m_RepositoryProps.empty())
+    {
+        Logger::Error("Repository props are still empty after loading; cannot pick random item.");
+        return;
+    }
 
-    std::srand(static_cast<unsigned int>(std::time(nullptr)));
-
-    size_t s_RandomIndex = std::rand() % m_RepositoryProps.size();
-    auto s_PropPair = GetRepositoryPropFromIndex(s_RandomIndex);
+    const size_t s_RandomIndex = m_Distribution(m_RandomGenerator);
+    const auto& s_PropPair = m_RepositoryProps[s_RandomIndex];
 
     auto s_LocalHitman = SDK()->GetLocalPlayer();
     if (!s_LocalHitman) {
@@ -333,9 +324,27 @@ void RandomItems::GiveRandomItem()
         }
 
         ZEntityRef s_ItemSpawnerEntity, s_ItemRepoKey;
+        SExternalReferences s_EmptyRefs{};
+        Functions::ZEntityManager_NewEntity->Call(
+    Globals::EntityManager,
+    s_ItemSpawnerEntity,
+    ZString(""),
+    s_Resource,
+    s_Scene.m_ref,
+    s_EmptyRefs,
+    static_cast<uint64_t>(-1)
+);
 
-        Functions::ZEntityManager_NewEntity->Call(Globals::EntityManager, s_ItemSpawnerEntity, "", s_Resource, s_Scene.m_ref, nullptr, -1);
-        Functions::ZEntityManager_NewEntity->Call(Globals::EntityManager, s_ItemRepoKey, "", s_Resource2, s_Scene.m_ref, nullptr, -1);
+        Functions::ZEntityManager_NewEntity->Call(
+            Globals::EntityManager,
+            s_ItemRepoKey,
+            ZString(""),
+            s_Resource2,
+            s_Scene.m_ref,
+            s_EmptyRefs,
+            static_cast<uint64_t>(-1)
+        );
+
 
         if (!s_ItemSpawnerEntity)
         {
@@ -356,7 +365,7 @@ void RandomItems::GiveRandomItem()
         s_ItemSpawner->m_rMainItemKey.m_pInterfaceRef = s_ItemRepoKey.QueryInterface<ZItemRepositoryKeyEntity>();
         s_ItemSpawner->m_rMainItemKey.m_pInterfaceRef->m_RepositoryId = s_PropPair.second;
         s_ItemSpawner->m_bUsePlacementAttach = false;
-        s_ItemSpawner->m_eDisposalTypeOverwrite = EDisposalType::DISPOSAL_HIDE;
+        s_ItemSpawner->m_eDisposalTypeOverwrite = EDisposalType::DISPOSAL_DESTROY;
         s_ItemSpawner->SetWorldMatrix(s_HitmanSpatial->GetWorldMatrix());
 
         Functions::ZItemSpawner_RequestContentLoad->Call(s_ItemSpawner);
@@ -366,7 +375,15 @@ void RandomItems::GiveRandomItem()
         auto* s_Inventory = static_cast<ZCharacterSubcontrollerInventory*>(s_Controllers->operator[](6).m_pInterfaceRef);
 
         TArray<ZRepositoryID> s_ModifierIds;
-        Functions::ZCharacterSubcontrollerInventory_AddDynamicItemToInventory->Call(s_Inventory, s_PropPair.second, "", &s_ModifierIds, 2);
+
+        Functions::ZCharacterSubcontrollerInventory_CreateItem->Call(
+            s_Inventory,
+            s_PropPair.second,                // repId
+            ZString(""),                      // sOnlineInstanceId (we leave it empty)
+            s_ModifierIds,                    // const TArray<ZRepositoryID>&
+            ZCharacterSubcontrollerInventory::ECreateItemType::ECIT_CarriedItem
+        );
+
     }
 }
 
