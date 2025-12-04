@@ -16,14 +16,20 @@
 #include <Glacier/ZContentKitManager.h>
 
 #include <Glacier/ZGameStats.h>
+#include <Glacier/SExternalReferences.h>
+
+#include <Hooks.h>
+
 
 
 
 RandomItems::RandomItems()
-  : m_CategoryEnabled(m_AllCategories.size(), true)
+    : m_RandomGenerator(std::mt19937{ std::random_device{}() }),
+      m_Distribution(0, 0),  // temporary; we will reset range after loading items
+      m_CategoryEnabled(m_AllCategories.size(), true)
 {
-
 }
+
 
 /**
  * Called when the game engine has finished initializing.
@@ -37,8 +43,6 @@ void RandomItems::OnEngineInitialized() {
 }
 
 
-std::random_device rd;
-m_RandomGenerator = std::mt19937(rd());
 
 
 /**
@@ -159,7 +163,7 @@ void RandomItems::LoadRepositoryProps()
     }
 
     // 3) Ensure the repository resource is loaded
-    if (m_RepositoryResource.m_nResourceIndex == -1)
+    if (!m_RepositoryResource)
     {
         const auto s_ID = ResId<"[assembly:/repository/pro.repo].pc_repo">;
         Globals::ResourceManager->GetResourcePtr(m_RepositoryResource, s_ID, 0);
@@ -199,7 +203,7 @@ void RandomItems::LoadRepositoryProps()
                     s_HasTitle    = true;
                     std::string t = ConvertDynamicObjectValueTString(kv.value);
                     s_TitleToAdd  = t;
-                    s_RepoIdToAdd = ZRepositoryID(s_Id.c_str());
+                    s_RepoIdToAdd = ZRepositoryID(ZString(s_Id));
 
                     // filter out blank titles if the user disabled them
                     if (t.empty() && !m_IncludeItemsWithoutTitle)
@@ -241,6 +245,12 @@ void RandomItems::LoadRepositoryProps()
             }
         }
     }
+
+    if (!m_RepositoryProps.empty()) {
+        m_Distribution = std::uniform_int_distribution<size_t>(
+            0, m_RepositoryProps.size() - 1
+        );
+    }
 }
 
 
@@ -252,31 +262,17 @@ void RandomItems::LoadRepositoryProps()
  */
 std::string RandomItems::ConvertDynamicObjectValueTString(const ZDynamicObject& p_DynamicObject)
 {
-    std::string s_Result;
-    const IType* s_Type = p_DynamicObject.m_pTypeID->typeInfo();
-
-    if (strcmp(s_Type->m_pTypeName, "ZString") == 0)
-    {
-        const auto s_Value = p_DynamicObject.As<ZString>();
-        s_Result = s_Value->c_str();
-    }
-    else if (strcmp(s_Type->m_pTypeName, "bool") == 0)
-    {
-        s_Result = *p_DynamicObject.As<bool>() ? "true" : "false";
-    }
-    else if (strcmp(s_Type->m_pTypeName, "float64") == 0)
-    {
-        double value = *p_DynamicObject.As<double>();
-
-        s_Result = std::to_string(value).c_str();
-    }
-    else
-    {
-        s_Result = s_Type->m_pTypeName;
+    // In our usage, all keys we care about (ID_, Title, InventoryCategoryIcon)
+    // are ZString values, so we can simply treat them as such.
+    const auto valuePtr = p_DynamicObject.As<ZString>();
+    if (!valuePtr) {
+        return {};
     }
 
-    return s_Result;
+    return valuePtr->c_str();
 }
+
+
 
 /**
  * Chooses a random item from the repository pool and either spawns it in the world or adds it to inventory.
@@ -288,7 +284,11 @@ void RandomItems::GiveRandomItem()
         Logger::Info("loading repository props (your game might freeze shortly)");
         LoadRepositoryProps();
     }
-
+    if (m_RepositoryProps.empty())
+    {
+        Logger::Error("Repository props are still empty after loading; cannot pick random item.");
+        return;
+    }
 
     const size_t s_RandomIndex = m_Distribution(m_RandomGenerator);
     const auto& s_PropPair = m_RepositoryProps[s_RandomIndex];
@@ -324,9 +324,27 @@ void RandomItems::GiveRandomItem()
         }
 
         ZEntityRef s_ItemSpawnerEntity, s_ItemRepoKey;
+        SExternalReferences s_EmptyRefs{};
+        Functions::ZEntityManager_NewEntity->Call(
+    Globals::EntityManager,
+    s_ItemSpawnerEntity,
+    ZString(""),
+    s_Resource,
+    s_Scene.m_ref,
+    s_EmptyRefs,
+    static_cast<uint64_t>(-1)
+);
 
-        Functions::ZEntityManager_NewEntity->Call(Globals::EntityManager, s_ItemSpawnerEntity, "", s_Resource, s_Scene.m_ref, nullptr, -1);
-        Functions::ZEntityManager_NewEntity->Call(Globals::EntityManager, s_ItemRepoKey, "", s_Resource2, s_Scene.m_ref, nullptr, -1);
+        Functions::ZEntityManager_NewEntity->Call(
+            Globals::EntityManager,
+            s_ItemRepoKey,
+            ZString(""),
+            s_Resource2,
+            s_Scene.m_ref,
+            s_EmptyRefs,
+            static_cast<uint64_t>(-1)
+        );
+
 
         if (!s_ItemSpawnerEntity)
         {
@@ -357,7 +375,15 @@ void RandomItems::GiveRandomItem()
         auto* s_Inventory = static_cast<ZCharacterSubcontrollerInventory*>(s_Controllers->operator[](6).m_pInterfaceRef);
 
         TArray<ZRepositoryID> s_ModifierIds;
-        Functions::ZCharacterSubcontrollerInventory_AddDynamicItemToInventory->Call(s_Inventory, s_PropPair.second, "", &s_ModifierIds, 2);
+
+        Functions::ZCharacterSubcontrollerInventory_CreateItem->Call(
+            s_Inventory,
+            s_PropPair.second,                // repId
+            ZString(""),                      // sOnlineInstanceId (we leave it empty)
+            s_ModifierIds,                    // const TArray<ZRepositoryID>&
+            ZCharacterSubcontrollerInventory::ECreateItemType::ECIT_CarriedItem
+        );
+
     }
 }
 
