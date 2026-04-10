@@ -263,6 +263,7 @@ namespace
         "E51BC878-281A-4711-B8A6-3088EBD1A27E", // Butchers Saw
         "D2F4E54F-1EB8-482D-9732-A9159B1A9229", // Colombia Melee Cocaine Bus
         "5FFDA47B-F445-44C7-8812-8D7E39E4928C", // Crowbar Holiday Present
+        "6B87C27D-0D73-4C63-B852-5A9C7A9FFB90", // (Melee) Feather Duster
         "2ADD9602-CDA7-43FD-9758-6269C8FBB233", // Fire Axe Holiday Present
         "987D9C9F-203D-44D9-BBF8-BF703F349565", // Firepoker
         "A1495DBF-4CEB-4109-85BD-0FA43BD654C8", // FirepokerHolidayPresent
