@@ -232,10 +232,7 @@ void RandomItems::LoadRepositoryProps()
                     s_Included = false;
                     break;
                 }
-                else
-                {
-                    Logger::Info("Unresolved skey: {}", s_Key);
-                }
+                // else {Logger::Debug("Unresolved skey: {}", s_Key);}
             }
 
             // 7) If it passed all filters, add it to the pool
@@ -299,9 +296,10 @@ void RandomItems::GiveRandomItem()
         return;
     }
 
+    Logger::Info("Spawning: {},  {}", s_PropPair.first, s_PropPair.second.ToString());
     if(m_SpawnInWorld) {
-        Logger::Info("Spawning in world: {}", s_PropPair.first);
-        ZSpatialEntity* s_HitmanSpatial = s_LocalHitman.m_ref.QueryInterface<ZSpatialEntity>();
+        // Logger::Info("Spawning in world: {}", s_PropPair.first);
+        ZSpatialEntity* s_HitmanSpatial = s_LocalHitman.m_entityRef.QueryInterface<ZSpatialEntity>();
 
         const auto s_Scene = Globals::Hitman5Module->m_pEntitySceneContext->m_pScene;
         if (!s_Scene) {
@@ -330,7 +328,7 @@ void RandomItems::GiveRandomItem()
     s_ItemSpawnerEntity,
     ZString(""),
     s_Resource,
-    s_Scene.m_ref,
+    s_Scene.m_entityRef,
     s_EmptyRefs,
     static_cast<uint64_t>(-1)
 );
@@ -340,7 +338,7 @@ void RandomItems::GiveRandomItem()
             s_ItemRepoKey,
             ZString(""),
             s_Resource2,
-            s_Scene.m_ref,
+            s_Scene.m_entityRef,
             s_EmptyRefs,
             static_cast<uint64_t>(-1)
         );
@@ -361,16 +359,15 @@ void RandomItems::GiveRandomItem()
         const auto s_ItemSpawner = s_ItemSpawnerEntity.QueryInterface<ZItemSpawner>();
 
         s_ItemSpawner->m_ePhysicsMode = ZItemSpawner::EPhysicsMode::EPM_KINEMATIC;
-        s_ItemSpawner->m_rMainItemKey.m_ref = s_ItemRepoKey;
+        s_ItemSpawner->m_rMainItemKey.m_entityRef = s_ItemRepoKey;
         s_ItemSpawner->m_rMainItemKey.m_pInterfaceRef = s_ItemRepoKey.QueryInterface<ZItemRepositoryKeyEntity>();
         s_ItemSpawner->m_rMainItemKey.m_pInterfaceRef->m_RepositoryId = s_PropPair.second;
         s_ItemSpawner->m_bUsePlacementAttach = false;
         s_ItemSpawner->m_eDisposalTypeOverwrite = EDisposalType::DISPOSAL_DESTROY;
-        s_ItemSpawner->SetWorldMatrix(s_HitmanSpatial->GetWorldMatrix());
+        s_ItemSpawner->SetObjectToWorldMatrixFromEditor(s_HitmanSpatial->GetObjectToWorldMatrix());
 
         Functions::ZItemSpawner_RequestContentLoad->Call(s_ItemSpawner);
     }  else {
-        Logger::Info("Adding to inventory: {} {}", s_PropPair.first, s_PropPair.second.ToString());
         const TArray<TEntityRef<ZCharacterSubcontroller>>* s_Controllers = &s_LocalHitman.m_pInterfaceRef->m_pCharacter.m_pInterfaceRef->m_rSubcontrollerContainer.m_pInterfaceRef->m_aReferencedControllers;
         auto* s_Inventory = static_cast<ZCharacterSubcontrollerInventory*>(s_Controllers->operator[](6).m_pInterfaceRef);
 
