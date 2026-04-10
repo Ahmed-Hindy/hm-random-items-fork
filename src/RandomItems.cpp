@@ -266,10 +266,16 @@ namespace
         "1ADDC0C6-68BD-4C29-972C-DA404BEA3715", // One_Hundred_Thousand_Euro_Poker_Chip
         "49C5EDFA-BD1C-4914-8368-BAC3B65BECF1", // Bergs Drugs
         "5FED2BB2-4FE9-4613-9F21-FEDC19BA5EB7", // Sedative Poison ReTYNZINE
+        "8ACF667C-071B-4A82-B58C-B1B95C5B71E8", // Poison_Pills_Baiju_ParalyticAntidote
         "83D09198-60CD-407A-8C27-2F37460193E9", // Prop_Melee_Syringe_Serum_WOLVERINE
         "D5CBB933-770C-495C-8C07-EECA9945D64E", // Poison_Vial_Baiju_Paralytic
         "E45C295D-60DD-4CBA-A01B-0DC1B6F1B17C", // Experimental medicine
-        "FCF98451-055A-46B0-949A-06A6F2B5875D" // Glass (Red) (SniperOnly)
+        "FCF98451-055A-46B0-949A-06A6F2B5875D", // Glass (Red) (SniperOnly)
+        "27F09DF0-93AC-4222-A546-F60D7AF8B5F6", // Key (Cultist Apartment)
+        "606A9606-8C05-4DCD-93FA-EC9CDC13F357", // Pneumatic Wrench
+        "9F98BAFE-E3E0-4753-96A1-D77BAB212B94", // Burner Phone Courier
+        "5569D6C4-2C83-4DF1-B8B1-A2E909D8B310", // Device Ghost Proximity AudioDistraction Armed
+        "9F63CD09-94F7-483B-93D9-4FFED6A0B331" // ICA Device Modular Remote Explosive Wolverine
     };
 
     bool IsBlacklistedRepositoryId(std::string p_Id)
