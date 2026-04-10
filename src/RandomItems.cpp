@@ -228,7 +228,48 @@ namespace
         "9BF224C4-6F9B-45F3-AD1E-2A3D9C12AFDD", // (Melee) Honey jar
         "A1F89118-D345-4367-9423-620C3EF5DFBA", // Pill Glass (Lethal Poison)
         "A729D2C1-D89C-4DA8-A628-816BA87DC349", // Plastic Cup
-        "1374A658-91D2-4ABD-B339-28C7835467E8" // Glass (Red)
+        "1374A658-91D2-4ABD-B339-28C7835467E8", // Glass (Red)
+
+        // Additional user-requested removals.
+        "5CC4D1EA-B4FA-4667-BA3A-B6E859F03059", // Brick
+        "6F750287-098A-4922-A254-23E1467E56A6", // Champagne Glass 120
+        "75A0D0DE-FE3C-47D3-B64F-7FC446EE59C4", // (Fiberwire) Quickdraw
+        "987D9C9F-203D-44D9-BBF8-BF703F349565", // Firepoker
+        "34D7BFBE-18A7-47F8-89E2-44F23F1482DC", // Glass of Champagne
+        "40766E9D-EB46-474E-B5CE-927E3E70F0C6", // Melee_Llama_WineBottle_BlueLabel_PinotNoir
+        "4EC12492-E385-424D-9F23-6F605501242D", // Melee_Yellow_EasterEgg
+        "5DB9CEFD-391E-4C35-A4C4-BB672AC9B996", // Machete_Jungle
+        "5FFDA47B-F445-44C7-8812-8D7E39E4928C", // Crowbar Holiday Present
+        "81654161-7711-4985-8056-8651A381D3CA", // Rake
+        "6696A10D-9138-4184-8104-A6C7EC2E0EB1", // Reward Hunting Shotgun Deluxe
+        "6B55C267-C83D-494E-85DF-5B4C81439BF6", // (Grenade) Flash Ghost
+        "B75010E8-ED6E-4646-BA22-73A30A7A990D", // Explosive Snow Globe
+        "8F0931B1-3C3A-40E8-941B-70E85C04E580", // Greed Cane
+        "8F6D512C-6C20-42C9-A58B-B7405247D46C", // Shaker
+        "CB34F363-3534-46FF-B036-D49F1329F300", // Torch
+        "C41A7041-60BC-4F1F-BBA4-5ED7232E5A6D", // Archmesh 1h Rock
+        "CB42999A-A4D6-456B-A457-33816DBCA4FD", // One_Million_Euro_Poker_Chip
+        "D7890635-7E81-4A72-822E-65990B666D81", // (Outbreak) Cure Grenade Flash
+        "EE25FC91-E42E-4044-99B4-B3C4206D250D", // Exploding Watch Battery
+        "E51BC878-281A-4711-B8A6-3088EBD1A27E", // Butchers Saw
+        "FF72222F-FD36-426C-B6F0-883CC813E3EE", // archteype c4 remote explosive
+        "BB42BBB6-289B-46F6-83AE-201385D0DEB1", // Styrofoam Crate
+        "30AE88F2-9F08-442A-A19A-64540D67EC93", // Mine Disarm Device
+        "59B5731D-2DE8-4175-9BE0-92FBC2C3E603", // Gadget Wristwatch Alarm
+        "9EAB85B0-D0DB-4867-AD02-32DF253D3F5F", // RemoteExplosiveDuck Bundle
+        "0576A20C-581B-4705-8B9D-464E077D117E", // WetFloorSign
+        "7F90421C-FD20-499E-8821-0950CC8995BC", // Tool_McGuffin
+        "DE11AAC7-BECE-4BC8-BFD4-858EE178B625", // Gadget_Camera_Tagging
+        "F3F8AC31-195D-4701-9E7C-775D621A405A", // Gadget_Camera
+        "D2C67AD3-95EB-4A21-A9B1-0C986AB4C091", // Burner  Phone Social
+        "1279B3DB-4AFC-4CEB-8B00-A3C2414B0B72", // Melee_Purple_EasterEgg
+        "1ADDC0C6-68BD-4C29-972C-DA404BEA3715", // One_Hundred_Thousand_Euro_Poker_Chip
+        "49C5EDFA-BD1C-4914-8368-BAC3B65BECF1", // Bergs Drugs
+        "5FED2BB2-4FE9-4613-9F21-FEDC19BA5EB7", // Sedative Poison ReTYNZINE
+        "83D09198-60CD-407A-8C27-2F37460193E9", // Prop_Melee_Syringe_Serum_WOLVERINE
+        "D5CBB933-770C-495C-8C07-EECA9945D64E", // Poison_Vial_Baiju_Paralytic
+        "E45C295D-60DD-4CBA-A01B-0DC1B6F1B17C", // Experimental medicine
+        "FCF98451-055A-46B0-949A-06A6F2B5875D" // Glass (Red) (SniperOnly)
     };
 
     bool IsBlacklistedRepositoryId(std::string p_Id)
