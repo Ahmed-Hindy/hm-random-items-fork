@@ -26,6 +26,8 @@ private:
     bool m_Running = false;
     bool m_ShowMessage = false;
     bool m_SpawnInWorld = true;
+    bool m_DynamicPhysics = false;
+    bool m_SetAIPerceptible = true;
     bool m_IncludeItemsWithoutTitle = false;
     float m_HitmanItemPosition[3] = { 0, 1, 0 };
     TResourcePtr<ZTemplateEntityFactory> m_RepositoryResource;
