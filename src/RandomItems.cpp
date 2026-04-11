@@ -357,6 +357,7 @@ void RandomItems::OnDrawUI(bool p_HasFocus) {
             }
             ImGui::InputDouble("Delay (in s)", &m_DelaySeconds);
             ImGui::Checkbox("Spawn in world", &m_SpawnInWorld);
+            ImGui::Checkbox("AI Can See Items", &m_AICanSeeItems);
             /*if (m_SpawnInWorld) {
                 ImGui::InputFloat3("Item position", m_HitmanItemPosition);
                 if (ImGui::IsItemHovered()) {
@@ -635,7 +636,10 @@ void RandomItems::GiveRandomItem()
 
         const auto s_ItemSpawner = s_ItemSpawnerEntity.QueryInterface<ZItemSpawner>();
 
-        s_ItemSpawner->m_ePhysicsMode = ZItemSpawner::EPhysicsMode::EPM_KINEMATIC;
+        s_ItemSpawner->m_ePhysicsMode = m_AICanSeeItems
+            ? ZItemSpawner::EPhysicsMode::EPM_DYNAMIC
+            : ZItemSpawner::EPhysicsMode::EPM_KINEMATIC;
+        s_ItemSpawner->m_bSetAIPerceptible = m_AICanSeeItems;
         s_ItemSpawner->m_rMainItemKey.m_entityRef = s_ItemRepoKey;
         s_ItemSpawner->m_rMainItemKey.m_pInterfaceRef = s_ItemRepoKey.QueryInterface<ZItemRepositoryKeyEntity>();
         s_ItemSpawner->m_rMainItemKey.m_pInterfaceRef->m_RepositoryId = s_PropPair.second;
