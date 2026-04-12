@@ -1,5 +1,6 @@
 // RandomItems.cpp
-// Plugin for Hitman Random Items mod. Spawns or adds random items at intervals.
+// Plugin for the Hitman Random Items mod. Spawns items in the world or adds
+// them to inventory at intervals.
 
 #include "RandomItems.h"
 
@@ -297,7 +298,7 @@ namespace
 
 RandomItems::RandomItems()
     : m_RandomGenerator(std::mt19937{ std::random_device{}() }),
-      m_Distribution(0, 0),  // temporary; we will reset range after loading items
+      m_Distribution(0, 0),  // Reset after loading items.
       m_CategoryEnabled(m_AllCategories.size(), true)
 {
 }
@@ -365,16 +366,13 @@ void RandomItems::OnDrawUI(bool p_HasFocus) {
                 }
             }*/
             ImGui::SeparatorText("Experimental");
-            // ────────────── Category Filter Menu ──────────────
             if (ImGui::CollapsingHeader("Category Filters")) {
                 ImGui::TextWrapped("Toggle which categories to include when rebuilding pool:");
                 for (size_t i = 0; i < m_AllCategories.size(); ++i) {
-                    // pull out a real bool from the vector<bool> proxy
+                    // ImGui needs a real bool because vector<bool> returns a proxy.
                     bool enabled = m_CategoryEnabled[i];
 
-                    // render the checkbox; ImGui will modify 'enabled' if clicked
                     if (ImGui::Checkbox(m_AllCategories[i].c_str(), &enabled)) {
-                        // write it back into your vector<bool>
                         m_CategoryEnabled[i] = enabled;
                     }
                 }
@@ -407,14 +405,6 @@ void RandomItems::OnFrameUpdate(const SGameUpdateEvent& p_UpdateEvent) {
         m_ElapsedTime = 0.0;
     }
 }
-
-/**
- * Retrieves the repository pair (title and ID) at the given index in the map.
- * @param s_Index Zero-based index into the repository properties map.
- * @return Pair of item title string and repository ID.
- * @throws std::out_of_range if index is invalid.
- */
-
 
 /**
  * Loads and filters the repository of available items from the game resource.
@@ -462,7 +452,7 @@ void RandomItems::LoadRepositoryProps()
             std::string s_TitleToAdd;
             ZRepositoryID s_RepoIdToAdd("");
 
-            // 6) Pull out each field we care about
+            // 6) Pull out the fields used for filtering and spawning
             for (const auto& kv : *s_Entries)
             {
                 std::string s_Key = kv.sKey.c_str();
@@ -478,17 +468,17 @@ void RandomItems::LoadRepositoryProps()
                     s_TitleToAdd  = t;
                     s_RepoIdToAdd = ZRepositoryID(ZString(s_Id));
 
-                    // filter out blank titles if the user disabled them
+                    // Filter out blank titles unless the user allows them
                     if (t.empty() && !m_IncludeItemsWithoutTitle)
                         s_Included = false;
                 }
                 else if (s_Key == "InventoryCategoryIcon")
                 {
-                    // uppercase the category
+                    // Normalize the category before comparing it with UI choices
                     std::string cat = ConvertDynamicObjectValueTString(kv.value);
                     std::transform(cat.begin(), cat.end(), cat.begin(), ::toupper);
 
-                    // check it against our dynamic list
+                    // Check it against the enabled category list
                     bool match = false;
                     for (auto& want : s_IncludedCategories)
                     {
@@ -501,19 +491,20 @@ void RandomItems::LoadRepositoryProps()
                 }
                 else if (s_Key == "IsHitmanSuit")
                 {
-                    // never spawn suits
+                    // Never spawn suits.
                     s_Included = false;
                     break;
                 }
                 // else {Logger::Debug("Unresolved skey: {}", s_Key);}
             }
 
-            // 7) If it passed all filters, add it to the pool
+            // 7) Apply the blacklist
             if (s_Included && IsBlacklistedRepositoryId(s_Id))
             {
                 s_Included = false;
             }
 
+            // 8) Add to pool
             if (s_Included && (s_HasTitle || m_IncludeItemsWithoutTitle))
             {
                 m_RepositoryProps.push_back({ s_TitleToAdd, s_RepoIdToAdd });
@@ -531,14 +522,13 @@ void RandomItems::LoadRepositoryProps()
 
 /**
  * Converts a dynamic object value to its string representation.
- * Supports ZString, bool, and float64 types; others return the type name.
+ * Supports ZString values; other types return an empty string.
  * @param p_DynamicObject The dynamic object to convert.
- * @return Value as a UTF-8 encoded std::string.
+ * @return Value as a std::string, or an empty string if it is not a ZString.
  */
 std::string RandomItems::ConvertDynamicObjectValueTString(const ZDynamicObject& p_DynamicObject)
 {
-    // In our usage, all keys we care about (ID_, Title, InventoryCategoryIcon)
-    // are ZString values, so we can simply treat them as such.
+    // The repository fields read by this function are expected to be ZString values.
     const auto valuePtr = p_DynamicObject.As<ZString>();
     if (!valuePtr) {
         return {};

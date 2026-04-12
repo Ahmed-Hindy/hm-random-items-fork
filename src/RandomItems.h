@@ -22,7 +22,7 @@ private:
     std::string ConvertDynamicObjectValueTString(const ZDynamicObject& p_DynamicObject);
 
     double m_ElapsedTime = 0;
-    double m_DelaySeconds = 2;
+    double m_DelaySeconds = 15;
     bool m_Running = false;
     bool m_ShowMessage = false;
     bool m_SpawnInWorld = true;
@@ -42,8 +42,8 @@ private:
         "smg",          "distraction", "poison",      "container"
     };
 
-    // Parallel flags: true = category is enabled
-    // Initialized to all-true via the ctor (see below)
+    // One flag per category; true means enabled.
+    // Initialized to all true by the constructor.
     std::vector<bool> m_CategoryEnabled;
 };
 

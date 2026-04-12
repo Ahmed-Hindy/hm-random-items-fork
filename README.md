@@ -1,7 +1,7 @@
 # Random Items
 This repo is a fork of [RandomItems](https://github.com/bennett-sh/hm-random-items) by bennett-sh. All credits go to him.
 
-A Hitman 3 SDK mod that allows you to spawn a random item every 15 seconds (or whatever delay you want it to be!).
+A Hitman 3 SDK mod that allows you to spawn a random item every 15 seconds by default, or whatever delay you choose.
 
 
 
@@ -12,13 +12,13 @@ A Hitman 3 SDK mod that allows you to spawn a random item every 15 seconds (or w
 2. Download the latest release of this repo from the right-side panel on this page.
 3. Copy `randomitems.dll` to the ZHMModSDK `mods` folder (e.g. `C:\Games\HITMAN 3\Retail\mods`).
 4. Run the game and once in the main menu, press the `~` key (`^` on QWERTZ layouts) and enable `RandomItems` from the menu at the top of the screen (you may need to restart your game afterwards).
-5. if you changed the item categories, you need to `stop` then `start` the itemspawner.
+5. If you change the item categories while the mod is running, click `Rebuild Item Pool` or stop and start the item spawner.
 6. Enjoy!
 
 
 
 ### Experimental Configuration
-There are some repository items that do not come with a `Title`-property. This means that, by default, they'll be excluded by this mod as these usually aren't spawnable items and result in longer periods of no items being spawned. If however you do want to include these, simply tick the checkbox and in case the mod is already running also hit the `Rebuild Item Pool`-button.
+Some repository items do not have a `Title` property. By default, the mod excludes them because they usually are not spawnable and can cause longer gaps between spawned items. To include them, tick the checkbox and, if the mod is already running, click `Rebuild Item Pool`.
 
 ## Building
 
